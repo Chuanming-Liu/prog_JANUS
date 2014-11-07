@@ -1,0 +1,9 @@
+c-----
+c       if dophvel .eq. 1 create control file for phase velocity
+c-----
+        if(dophvel .eq. 1)then
+             open(3,file='phv96.ctl',access='sequential',
+     1           form='formatted',status='unknown')
+             rewind 3
+             write(3,*)pcount
+        endif

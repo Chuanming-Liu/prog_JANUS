@@ -1,0 +1,22 @@
+INST_DIR = $(HOME)/bin
+#BIN = Main_ani_rdKernel_isolay_rf_parallel
+BIN = test2
+FC = g77
+CC = g++ 
+FFLAGS = -O3 -Wall -ffixed-line-length-none
+CFLAGS = -O3 -Wall -fopenmp
+LDLIBS = -L/usr/lib/gcc/x86_64-redhat-linux/3.4.6
+
+FOBJS = Main_ani_rdKernel_isolay_rf_parallel.o \
+	./RF/theo.o ./RF/qlayer.o ./RF/four1.o
+
+$(BIN) : $(FOBJS)
+	$(CC) $(FOBJS) -o $(BIN) ${LDLIBS} -fopenmp -lg2c -fno-double-underscore -fno-underscore 
+
+Main_ani_rdKernel_isolay_rf_parallel.o : Main_ani_rdKernel_isolay_rf_parallel.C
+	$(CC) -fopenmp -O3 -c $^
+
+clean ::
+	rm -f $(BIN) core.* $(FOBJS)
+
+		

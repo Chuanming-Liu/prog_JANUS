@@ -1,0 +1,3 @@
+spectral_snr_f_V2.c is the origional version of defining min/max T/P
+spectral_snr_f_V2_eqk_tmp.c has changed the min/max P ALSO!! This is the version that corrected the b!=0 situation.
+
