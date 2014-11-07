@@ -1,1 +1,0 @@
-../inversion_ElasticTensor/CALinv_isolay_rf_parallel_saveMEM_BS_updateK_eachjump_parallel.C

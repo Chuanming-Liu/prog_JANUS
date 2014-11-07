@@ -1,1 +1,0 @@
-../inversion_ElasticTensor/INITstructure_BS.h

@@ -1,1 +1,0 @@
-../inversion_ElasticTensor/CALmodel_LVZ_ET_BS.C

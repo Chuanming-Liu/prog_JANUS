@@ -1,1 +1,0 @@
-../inversion_ElasticTensor/gen_random_cpp.C
