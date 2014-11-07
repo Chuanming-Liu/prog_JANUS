@@ -1,0 +1,22 @@
+#include<iostream>
+#include<algorithm>
+#include<vector>
+#include<cmath>
+#include<fstream>
+//#include <Eigen/Core>
+
+
+#include"./string_split.C"
+//#include"./generate_Bs.C"
+//#include"./gen_random.C"
+//#include"./INITstructure.h"
+//#include"CALpara_isolay.C"
+
+using namespace std;
+//using namespace Eigen;
+
+int main(){
+  cout<<"hi\n";
+  return 1;
+}
+

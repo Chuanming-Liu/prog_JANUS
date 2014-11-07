@@ -1,0 +1,530 @@
+# this is used get the map view of some information 
+# for every point, get the info of that para
+# theta, phi in the crust; phi and theta in the mantle
+# this version, use vsv&vsh file to compute ani value. Also, it reads in the multiple group (_phigp0/1) files
+# this v2.2, modified from v2, use gamma (from Thomsen 1986) to represent the Vs RA
+# modified on Jul 24, 2014, modify the mantle Ani computation, and add the ani for P wave
+import os
+import os.path
+import sys
+from math import *
+
+############################################
+fout=sys.argv[1]
+invid = sys.argv[2]
+flagBest = int(sys.argv[3]) # write out the best-fitting para (1) or average para (0); the para only indicate the theta&phi or cos&sin; not the amplitude of radial anisotropy
+surffix=sys.argv[4]
+flag=int(sys.argv[5]) # indicate if use para v14.2(no sed), or v14.2.1 (has sed)
+indir = "/projects/jixi7887/work/US/inv_ET_BS"
+indirdata = "/lustre/janus_scratch/jixi7887/US/inv_ET_BS/inv_%s"%(invid)
+fout2="%s.depth_value"%(fout) # the Vs and Vp anisotropy as a function of depth
+fout3="%s.depth_value.effTI"%(fout) # the Vs and Vp anisotropy as a function of depth
+#####
+fpoint = "%s/point_info/point_info_closestnm_dist_1deg.txt"%(indir)
+#fpoint = "%s/data_disp_Jan7/point_info_v2.txt"%(indir)
+#fpoint = "%s/point_temp1.txt"%(indir)
+#####
+if(flag==1):
+	paraidlst=[5,6,75,76] #theta,phi in the crust, and theta, phi in the mantle
+	#paraidlst=[12,13,75,76]
+else:	
+	paraidlst=[7,8,77,78] #theta,phi in the crust, and th
+	#paraidlst=[14,15,77,78]
+idAZ=[2,3] # tells which paraidlst[id] is the thetaM and phiM
+#fout = "./para_map.txt"
+#invid=int(sys.argv[2]) #fpara="%s/%s_inv_%d/bin_avg/para_%.1f_%.1f.txt"%(indir,name,invid,lon,lat)
+paranmlst=['thetaC','phiC','thetaM','phiM'] #name of each para
+flagCS2AP=0 # (1)indicate the read in is cos&sin, need to change them into amp&phi; (0)otherwise, indicate the read in is the value we want, no further computation is needed
+#deplst=[5,10,15,20,25,30,35,40,45,50,55,60,65,70,75,80] #depth in km
+deplst=[0.03,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,0.99] #percentage of Hmoho
+############################################
+
+#---------------------------------------------------
+def readfile (file):
+        deplst=[];vlst=[];unclst=[]
+        i=0
+        for line in open(file):
+		l=line.rstrip().split()
+                i+=1
+                if('nan' in line):
+                        print line
+                        continue
+		if(i==1):
+			Hsed=float(l[1]);Hsedunc=float(l[2])
+                if(i==2):
+                        Hmoho=float(l[1]);Hmohounc=float(l[2])
+                elif(i>2):
+                        deplst.append(float(l[2]))
+                        vlst.append(float(l[3]))
+                        unclst.append(float(l[6]))
+        return Hmoho,Hmohounc,deplst,vlst,unclst,Hsed
+
+#---------------------------------------------------
+def test_depth(deplst,h1,h2,Hcst,Hsed): 
+	for i in range(len(deplst)):
+		depref=deplst[i]
+		if depref < 1:
+			depref=deplst[i]*Hcst+Hsed
+			#depref=deplst[i]*(Hcst+Hsed)
+		if(h1<=depref and depref<=h2):
+			return i
+	return -1;
+def interpolate_value(depref,h1,h2,v1,v2,Hcst,Hsed):
+	if (depref<1):
+		depref=depref*Hcst+Hsed
+		#depref=depref*(Hcst+Hsed)
+	if (depref==h1):
+		return v1
+	elif (depref==h2):
+		return v2
+	else:
+		value=v1+(v2-v1)/(h2-h1)*(depref-h1)
+		return value
+
+#---------------------------------------------------
+def rotate (thetaz,thetay,thetax,Cm):
+	#--rotating angles ---
+        o3=thetaz*pi/180.; 
+        o2=thetay*pi/180.; 
+        o1=thetax*pi/180; 
+        #---coordinate transformation matrix --------
+	a3m=matrix([[cos(o3),   sin(o3),        0],
+                   [-sin(o3),   cos(o3),        0],
+                   [0,           0,             1]])
+
+        a2m=matrix([[cos(o2),   0,              -sin(o2)],
+                  [0,           1,              0 ],
+                  [sin(o2),     0,              cos(o2)]])
+
+        a1m=matrix([[1,         0,              0], 
+                  [0,           cos(o1),        sin(o1)],
+                  [0,           -sin(o1),       cos(o1)]])
+        am=a3m*a2m*a1m #rotate the tensor CW around X, then CW around Y, then CW around Z == rotate the coordinate CCW around X, then CCW around the TRANSFORMED Y', then CCW around the TRANSFORMED Z''
+	#---define coefficient transformation matrix ---------
+        axx=am[0,0];axy=am[0,1];axz=am[0,2];
+        ayx=am[1,0];ayy=am[1,1];ayz=am[1,2];
+        azx=am[2,0];azy=am[2,1];azz=am[2,2];
+        M1m=square(am)
+        M2m=matrix([[2*axy*axz,         2*axz*axx,              2*axx*axy],
+                    [2*ayy*ayz,         2*ayz*ayx,              2*ayx*ayy],
+                    [2*azy*azz,         2*azz*azx,              2*azx*azy]])
+        M3m=matrix([[ayx*azx,           ayy*azy,                ayz*azz],
+                    [azx*axx,           azy*axy,                azz*axz],
+                    [axx*ayx,           axy*ayy,                axz*ayz]])
+        M4m=matrix([[ayy*azz+ayz*azy,   ayx*azz+ayz*azx,        ayy*azx+ayx*azy],
+                    [axy*azz+axz*azy,   axz*azx+axx*azz,        axx*azy+axy*azx],
+                    [axy*ayz+axz*ayy,   axz*ayx+axx*ayz,        axx*ayy+axy*ayx]])
+
+        Mm=vstack((hstack((M1m,M2m)),hstack((M3m,M4m))))
+        #print "\ncoefficient transformation matrix:\n",Mm
+        Cm_=dot(dot(Mm,Cm),Mm.T)
+        #print "\nrotated Elastic constant matrix:\n",Cm_
+        return Cm_
+
+def cs2ap (Ac,As,phiflag):
+	# from the cos, sin coefficient, to the amplitude of anisotropy and fast axis of anisotropy
+	T=2*pi/phiflag
+	amp=(Ac*Ac+As*As)**0.5
+	phi=atan2(Ac,As) #[-pi,pi]	
+	phi=phi/phiflag
+	phi=T/4. -phi #fast axis direction
+	while (phi>T):
+		phi=phi-T
+	while (phi<0):
+		phi=phi+T
+	phi=phi*180./pi #rad2deg
+	return amp,phi
+def get_AmpPhi_from_vel(vsv,vsh,vpv,vph,eta,theta,phi):
+	#ignore the rho term, the output amp is unitless (|G|/2L), so rho cancels out
+	phiflag=2 #2psi
+	Ain=vph*vph;Cin=vpv*vpv;Lin=vsv*vsv;Nin=vsh*vsh;Fin=eta*(Ain-2*Lin)
+	#---rotating angles----
+	thetax=theta*pi/180.;
+	thetay=0.;
+	thetaz=(-1*phi)*pi/180.;
+	#
+	ETin=matrix([[Ain,	Ain-2*Nin,	Fin,	0,	0,	0],
+		     [Ain-2*Nin,      Ain,	Fin,	0,	0,	0],
+		     [Fin,	Fin,		Cin,	0,	0,	0],
+		     [0,	0,		0,	Lin,	0,	0],
+		     [0,	0,		0,	0,	Lin,	0],
+		     [0,	0,		0,	0,	0,	Nin]])
+	#
+	ET=rotate(thetaz,thetay,thetax,ETin)
+	Gc=(ET[4,4]-ET[3,3])*0.5
+	Gs=ET[4,3]
+	#
+	amp,phi=cs2ap(Gc,Gs,phiflag)
+	amp=amp/L #unitless anisotropy
+	return amp,phi
+#---------------------------------------------------
+#def get_aniC_aniM_fromV(fvsv,fvsh,fvpv,fvph,feta,deplst,thetaC,phiC):
+def get_aniC_aniM_fromV(fvsv,fvsh,fvpv,fvph,feta,deplst):
+        #computes the crustal average ani (average over depmin~moho), and mantle ani; (this is only for the mantle with constant ani); this computes ani from vsv and vsh, not directly read in ani
+        i=0             
+        sum=0;sumunc=0;dep1=0;ani1=0;unc1=0;H=0
+	summat=0;sumuncmat=0;Hmat=0;
+        sumP=0;sumuncP=0;epsi1=0;unc1P=0;
+	summatP=0;sumuncmatP=0;
+	sumeta=0;sumunceta=0;eta1=0;unc1eta=0;
+	summateta=0;sumuncmateta=0;
+	sumdel=0;sumuncdel=0;delta1=0;unc1del=0;
+	summatdel=0;sumuncmatdel=0;
+	dif1=0;sumdif=0;     
+	dif1mat=0;sumdifmat=0;     
+        flag=0           
+
+	#--initialize the value at depth list --
+	Ndep=len(deplst)
+	epsihlst=[0]*Ndep;epsiunchlst=[0]*Ndep;gammahlst=[0]*Ndep;gammaunchlst=[0]*Ndep;
+
+	
+        Hmohovsv,Hmohouncvsv,depvsvlst,vsvlst,uncvsvlst,Hsedvsv=readfile(fvsv)
+        Hmohovsh,Hmohouncvsh,depvshlst,vshlst,uncvshlst,Hsedvsh=readfile(fvsh)
+        Hmohovpv,Hmohouncvpv,depvpvlst,vpvlst,uncvpvlst,Hsedvpv=readfile(fvpv)
+        Hmohovph,Hmohouncvph,depvphlst,vphlst,uncvphlst,Hsedvph=readfile(fvph)
+        Hmohoeta,Hmohounceta,depetalst,etalst,uncetalst,Hsedeta=readfile(feta)
+                        
+        if(fabs(Hmohovsv-Hmohovsh)>0.5*(Hmohouncvsv+Hmohouncvsh)):
+                print "Hey, moho is different in fvsv and fvsh:\n\t %s~%g,\n\t %s~%g\n"%(fvsv,Hmohovsv,fvsh,Hmohovsh)
+                sys.exit()
+
+	depmin=Hsedvsv
+        #depmin=Hmohovsv*0.1; ################### the start depth for computing crustal anisotropy average
+        depmax=Hmohovsv; ################### the end depth for computing crustal anisotropy average
+	#c11=vph*vph;c33=vpv*vpv;c44=vsv*vsv;c66=vsh*vsh;c13=eta*(c11-2*c44);epsi=(c11-c33)/2/c33;delta1=(c13+2*c44-c33)/c33;delta=((c13+c44)**2-(c33-c44)**2)/(2*c33*(c33-c44));
+        for i in range(len(depvsvlst)):
+                if(fabs(depvsvlst[i]-depvshlst[i])>1e-5):
+                        print "inconsistent depth! %g vs. %g\n"%(depvsvlst[i],depvshlst[i])
+                        sys.exit()
+                vsv=vsvlst[i];vsh=vshlst[i];uncvsv=uncvsvlst[i];uncvsh=uncvshlst[i]
+                vpv=vpvlst[i];vph=vphlst[i];uncvpv=uncvpvlst[i];uncvph=uncvphlst[i]
+                eta=etalst[i];unceta=uncetalst[i];
+                dep=depvshlst[i];
+		vs=sqrt((2*vsv**2+vsh**2)/3.)
+		
+		A=vph*vph;C=vpv*vpv;L=vsv*vsv;N=vsh*vsh;F=eta*(A-2L);
+		dA=2*vph*uncvph;dC=2*vpv*uncvpv;dL=2*vsv*uncvsv;dN=2*vsh*uncvsh;
+		dF=sqrt( ((A-2*L)*unceta)**2 +  (eta*dA)**2  +  (2*eta*dL)**2  )
+		uncdelta=sqrt( (dF/C)**2  +(2*dL/C)**2 +((F+2*L)/C/C*dC)**2 ) # for the simplified delta, (F+2L-C)/C
+
+                if(dep<depmin):
+			ani=(vsh*vsh-vsv*vsv)/(2*vsv*vsv) #gamma=(c66-c44)/(2*c44)	
+			unc=sqrt((vsh**2/vsv**3*uncvsv)**2+(vsh/vsv**2*uncvsh)**2)
+			uncP=sqrt((vph**2/vpv**3*uncvpv)**2+(vph/vpv**2*uncvph)**2)
+			
+			epsi=(vph**2-vpv**2)/(2*vpv**2)
+			c13=eta*(vph**2-2*vsv**2) #in fact, cij/rho
+			c44=vsv**2;c33=vpv**2;
+			delta=((c13+c44)**2-(c33-c44)**2)/(2*c33*(c33-c44));
+			dif=epsi-delta
+                        #print dep,ani,unc
+
+			flag2=test_depth(deplst,dep1,dep,Hmohovsv,Hsedvsv)
+			if(flag2>=0):
+				epsihlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,epsi1,epsi,Hmohovsv,Hsedvsv)
+				epsiunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,uncP,unc1P,Hmohovsv,Hsedvsv)
+				gammahlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,ani1,ani,Hmohovsv,Hsedvsv)
+				gammaunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,unc1,unc,Hmohovsv,Hsedvsv)
+
+                        ani1=ani;unc1=unc;dep1=dep;dif1=dif;
+                        epsi1=epsi;unc1P=uncP;
+			eta1=eta;unc1eta=unceta
+			delta1=delta;unc1del=uncdelta; 
+
+			
+                elif(dep<=depmax):
+                #elif(dep<Hmohovsv):
+			ani=(vsh*vsh-vsv*vsv)/(2*vsv*vsv) #gamma=(c66-c44)/(2*c44)	
+			unc=sqrt((vsh**2/vsv**3*uncvsv)**2+(vsh/vsv**2*uncvsh)**2)
+			uncP=sqrt((vph**2/vpv**3*uncvpv)**2+(vph/vpv**2*uncvph)**2)
+
+			epsi=(vph**2-vpv**2)/(2*vpv**2)
+                        c13=eta*(vph**2-2*vsv**2) #in fact, cij/rho
+                        c44=vsv**2;c33=vpv**2;
+                        delta=((c13+c44)**2-(c33-c44)**2)/(2*c33*(c33-c44));
+			uncdel=uncdelta;
+                        dif=epsi-delta
+			#--compute the apparent azimuthal anisotropy's amp and fast axis
+			#AZamp,AZphi=get_AmpPhi_from_vel(vsv,vsh,vpv,vph,eta,thetaC,phiC):
+
+			#--
+			flag2=test_depth(deplst,dep1,dep,Hmohovsv,Hsedvsv)
+			if(flag2>=0):
+				epsihlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,epsi1,epsi,Hmohovsv,Hsedvsv)
+				epsiunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,uncP,unc1P,Hmohovsv,Hsedvsv)
+				gammahlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,ani1,ani,Hmohovsv,Hsedvsv)
+				gammaunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,unc1,unc,Hmohovsv,Hsedvsv)
+			
+			#
+                        sum=sum+(ani+ani1)*(dep-dep1)*0.5
+                        sumunc=sumunc+(unc+unc1)*(dep-dep1)*0.5
+                        sumP=sumP+(epsi+epsi1)*(dep-dep1)*0.5
+                        sumuncP=sumuncP+(uncP+unc1P)*(dep-dep1)*0.5
+			sumdif=sumdif+(dif+dif1)*(dep-dep1)*0.5
+			sumeta+=(eta+eta1)*(dep-dep1)*0.5
+			sumunceta+=(unceta+unc1eta)*(dep-dep1)*0.5
+			sumdel+=(delta+delta1)*(dep-dep1)*0.5
+			sumuncdel+=(uncdel+unc1del)*(dep-dep1)*0.5
+
+                        H=H+(dep-dep1)
+                        ani1=ani;unc1=unc;dep1=dep;dif1=dif;
+                        epsi1=epsi;unc1P=uncP;
+			epsi1=epsi;unc1P=uncP;
+                        eta1=eta;unc1eta=unceta
+			delta1=delta;unc1del=uncdel; 
+                elif (dep<100.): # since mantle has constant ani, so only take the 1st value is enough.############ may need modification ## ### this need modification, but since I'm not interested in mantle ani right now, no need to change it right now ==> CHANGED
+			ani=(vsh*vsh-vsv*vsv)/(2*vsv*vsv) #gamma=(c66-c44)/(2*c44)	
+			unc=sqrt((vsh**2/vsv**3*uncvsv)**2+(vsh/vsv**2*uncvsh)**2)
+			uncP=sqrt((vph**2/vpv**3*uncvpv)**2+(vph/vpv**2*uncvph)**2)
+
+			epsi=(vph**2-vpv**2)/(2*vpv**2)
+                        c13=eta*(vph**2-2*vsv**2) #in fact, cij/rho
+                        c44=vsv**2;c33=vpv**2;
+                        delta=((c13+c44)**2-(c33-c44)**2)/(2*c33*(c33-c44));
+                        dif=epsi-delta
+	
+			flag2=test_depth(deplst,dep1,dep,Hmohovsv,Hsedvsv)
+			if(flag2>=0):
+				epsihlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,epsi1,epsi,Hmohovsv,Hsedvsv)
+				epsiunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,uncP,unc1P,Hmohovsv,Hsedvsv)
+				gammahlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,ani1,ani,Hmohovsv,Hsedvsv)
+				gammaunchlst[flag2]=interpolate_value(deplst[flag2],dep1,dep,unc1,unc,Hmohovsv,Hsedvsv)
+
+			if(flag==0):
+				#print "TEST---get ani mantle: dep=%f moho=%f"%(dep,Hmohovsv)
+				#sys.exit()
+                        	aniavg=sum/H;
+                        	uncavg=sumunc/H;
+                        	aniavgP=sumP/H;
+                        	uncavgP=sumuncP/H;
+				difavg=sumdif/H;
+				animat1=ani;
+				uncmat1=unc;
+				animat1P=epsi;
+				uncmat1P=uncP;
+				etaavg=sumeta/H; delavg=sumdel/H;
+				etauncavg=sumunceta/H;deluncavg=sumuncdel/H;
+				etamat1=eta;delmat1=delta; #did not cpt unc of delta
+				uncmat1eta=unceta;uncmat1del=0;
+				dif1mat=dif
+				dep1=dep
+				flag=1
+				continue
+				# this will ignore the upper-most 1km of the mantle, shall I change this??
+			animat=ani;uncmat=unc;
+			animatP=epsi;uncmatP=uncP;difmat=dif;
+			etamat=eta;uncmateta=unceta;
+			delmat=delta;uncmatdel=0;
+
+			summat+=(animat+animat1)*(dep-dep1)/2
+			sumuncmat+=(uncmat+uncmat1)*(dep-dep1)/2
+			summatP+=(animatP+animat1P)*(dep-dep1)/2
+			sumuncmatP+=(uncmatP+uncmat1P)*(dep-dep1)/2
+			sumdifmat+=(difmat+dif1mat)*(dep-dep1)*0.5
+			summateta+=(etamat+etamat1)*(dep-dep1)/2
+			sumuncmateta+=(uncmateta+uncmat1eta)*(dep-dep1)/2
+			summatdel+=(delmat+delmat1)*(dep-dep1)/2
+			sumuncmatdel+=(uncmatdel+uncmat1del)*(dep-dep1)/2
+			Hmat+=(dep-dep1)
+			animat1=animat;uncmat1=uncmat;dep1=dep;dif1mat=difmat;
+			animat1P=animatP;uncmat1P=uncmatP;
+	animantle=summat/Hmat;uncmantle=sumuncmat/Hmat;
+	animantleP=summatP/Hmat;uncmantleP=sumuncmatP/Hmat;
+	etamantle=summateta/Hmat;uncetamantle=sumuncmateta/Hmat
+	delmantle=summatdel/Hmat;uncdelmantle=sumuncmatdel/Hmat
+	difmat=sumdifmat/Hmat
+        return aniavg,uncavg,animantle,uncmantle,difavg,aniavgP,uncavgP,animantleP,uncmantleP,difmat,etaavg,etauncavg,delavg,deluncavg,etamantle,uncetamantle,delmantle,epsihlst,epsiunchlst,gammahlst,gammaunchlst         
+#---------------------------------------------------
+def get_aniC_aniM(fani):
+        #computes the crustal average ani (average over depmin~moho), and mantle ani; (this is only for the mantle with constant ani)
+        i=0
+        sum=0;sumunc=0;dep1=0;ani1=0;unc1=0;H=0
+        for line in open(fani):
+                i=i+1
+                l=line.rstrip().split()
+                if 'nan' in line:
+                        print line
+                        continue
+                if (i==2):
+                        Hmoho=float(l[1]) #depth of moho
+                        depmin=Hmoho/4
+                elif(i>2):
+                        dep=float(l[2])
+                        if(dep<depmin):
+                                ani=float(l[3])
+                                unc=float(l[6])
+                                ani1=ani;unc1=unc;dep1=dep;
+                        elif(dep<=Hmoho):
+                                ani=float(l[3])
+                                unc=float(l[6])
+                                sum=sum+(ani+ani1)*(dep-dep1)/2.
+                                sumunc=sumunc+(unc+unc1)*(dep-dep1)/2.
+                                H=H+(dep-dep1)
+                                ani1=ani;unc1=unc;dep1=dep;
+                        else:# since mantle has constant ani, so only take the 1st value is enough.
+                                #print "H=%f moho=%f"%(H,Hmoho)
+                                aniavg=sum/H;
+                                uncavg=sumunc/H;
+                                animantle=float(l[3])
+                                uncmantle=float(l[6])
+                                break
+        return aniavg,uncavg,animantle,uncmantle
+
+#---------------------------------------------------
+def get_misfit(fani):
+	i=0
+	for line in open(fani):
+		i=i+1
+		if(i==2):
+			l=line.rstrip().split()
+			misfit = float(l[1])
+			break
+			
+	return misfit
+
+#----Main
+print "writting %s and %s"%(fout,fout2)
+out=open(fout,"w")
+out2=open(fout2,"w")
+out3=open(fout3,"w")
+stnmlst=[];lonlst=[];latlst=[]
+Npoint=0
+for line in open(fpoint):
+	l=line.rstrip().split()
+	stnmlst.append(l[0])
+	lonlst.append(float(l[1]))
+	latlst.append(float(l[2]))
+	Npoint=Npoint+1
+
+#I09A_inv_2/bin_avg/para_-118.0_44.0.txt:     0   1.4080   0.0000
+Nparaid=len(paraidlst)
+#paravaluelst2=[]
+#parastdlst2=[]
+for i in range(Npoint):
+	paravaluelst1=[]
+	parastdlst1=[]
+
+	stnm=stnmlst[i]
+	lon=lonlst[i]
+	lat=latlst[i]
+	name = "%s_%.1f_%.1f"%(stnm,lon,lat)
+	fpara="%s/%s_inv_%s/bin_avg/para_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	fvsv="%s/%s_inv_%s/bin_avg/vsv_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	fvsh="%s/%s_inv_%s/bin_avg/vsh_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	fvpv="%s/%s_inv_%s/bin_avg/vpv_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	fvph="%s/%s_inv_%s/bin_avg/vph_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	feta="%s/%s_inv_%s/bin_avg/eta_%.1f_%.1f.txt%s"%(indirdata,name,invid,lon,lat,surffix)
+	if (not( os.path.exists(fpara) and os.path.exists(fvsv) and os.path.exists(fvsh) and os.path.exists(fvpv) and os.path.exists(fvph) and os.path.exists(feta))):
+		print "file %s doesn't exist! skip\n"%(fpara)
+		continue
+	count=0
+	for line in open(fpara):
+		l=line.rstrip().split()
+		ipara=int(l[0])
+		if ipara not in paraidlst:
+			continue
+		if ( flagBest == 0 ):
+			paravaluelst1.append(float(l[1])) #average para
+		else:
+			paravaluelst1.append(float(l[3])) #best fitting para
+		parastdlst1.append(float(l[2]))				
+		count=count+1
+		if(count==Nparaid):
+			break;
+  	if ( flagCS2AP==1): # indicate the read in is cos&sin, need to change them into amp&phi; otherwise, indicate the read in is the value we want, no further computation is needed
+	  for i in range(Nparaid):
+		if i == idAZ[0]:
+			cos=paravaluelst1[i]
+			unccos=parastdlst1[i]
+		elif i==idAZ[1]:		
+			sin=paravaluelst1[i]
+			uncsin=parastdlst1[i]
+	  os.system("/home/jixi7887/progs/jy/inversion_ElasticTensor/cs2ap %f %f %f %f > temp.txt"%(cos,sin,unccos,uncsin))	
+	  for line in open("temp.txt"): #amp AZ uncamp uncAZ
+		l=line.rstrip().split("_")
+		amp=float(l[0]);AZ=float(l[1]);uncamp=float(l[2]);uncAZ=float(l[3])
+	  paravaluelst1[idAZ[0]]=amp
+	  parastdlst1[idAZ[0]]=uncamp
+	  paravaluelst1[idAZ[1]]=AZ
+	  parastdlst1[idAZ[1]]=uncAZ
+
+	#paravaluelst2.append(paravaluelst1)
+	#parastdlst2.append(parastdlst1)
+	
+	out.write("%s %7.1f %7.1f "%(stnm,lon,lat))
+	for i in range(Nparaid):
+		#---change the phiC and phiM to [0,180] range
+		Tphi=180
+		if(paranmlst[i]=="phiC" or paranmlst[i]=="phiM"):
+			while(paravaluelst1[i]>Tphi):
+				paravaluelst1[i]-=Tphi
+		out.write(" %5s %8.4f %8.4f "%(paranmlst[i],paravaluelst1[i],parastdlst1[i]))
+	thetaC=paravaluelst1[0];
+	phiC=paravaluelst1[1];
+	#print "crust: theta=%8g phi=%8g"%(thetaC,phiC)
+	#sys.exit()
+	#---compute average ani for crust, mantle
+	# ../I11A_inv_2/bin_avg/ani_-116.0_44.0.txt
+	#sedi 0.238023 2.27762e-05
+	#moho  33.1773 0.00370676
+       	#0        0        0        0        0        0        0
+    	#0.05        0     0.05        0     0.05        0        0
+	"""
+	fani="%s/%s_inv_%s/bin_avg/ani_%.1f_%.1f.txt"%(indirdata,name,invid,lon,lat)
+	aniavg,uncavg,animantle,uncmantle=get_aniC_aniM(fani)
+	out.write(" aniC %8.4f %8.4f aniM %8.4f %8.4f"%(aniavg,uncavg,animantle,uncmantle))
+
+	fani="%s/%s_inv_%s/bin_avg/ani_%.1f_%.1f.txt_effTI"%(indirdata,name,invid,lon,lat)
+	aniavg,uncavg,animantle,uncmantle=get_aniC_aniM(fani)
+	out.write(" aniCeffTI %8.4f %8.4f aniMeffTI %8.4f %8.4f"%(aniavg,uncavg,animantle,uncmantle))
+	"""
+	#aniavg,uncavg,animantle,uncmantle,difavg;aniavgP,uncavgP,animantleP,uncmantleP,difmat,etaavg,etauncavg,delavg
+	aniavg,uncavg,animantle,uncmantle,difavg,aniavgP,uncavgP,animantleP,uncmantleP,difmat,etaavg,etauncavg,delavg,deluncavg,etamantle,uncetamantle,delmantle,epsihlst,epsiunchlst,gammahlst,gammaunchlst=get_aniC_aniM_fromV(fvsv,fvsh,fvpv,fvph,feta,deplst)
+	out.write(" aniC %8.4f %8.4f aniM %8.4f %8.4f difC %8.4f 0 "%(aniavg,uncavg,animantle,uncmantle,difavg))
+
+        fvsv="%s/%s_inv_%s/bin_avg/vsv_%.1f_%.1f.txt_effTI%s"%(indirdata,name,invid,lon,lat,surffix)
+        fvsh="%s/%s_inv_%s/bin_avg/vsh_%.1f_%.1f.txt_effTI%s"%(indirdata,name,invid,lon,lat,surffix)
+        fvpv="%s/%s_inv_%s/bin_avg/vpv_%.1f_%.1f.txt_effTI%s"%(indirdata,name,invid,lon,lat,surffix)
+        fvph="%s/%s_inv_%s/bin_avg/vph_%.1f_%.1f.txt_effTI%s"%(indirdata,name,invid,lon,lat,surffix)
+        feta="%s/%s_inv_%s/bin_avg/eta_%.1f_%.1f.txt_effTI%s"%(indirdata,name,invid,lon,lat,surffix)
+        aniavg,uncavg,animantle,uncmantle,difavg,aniavgPE,uncavgPE,animantlePE,uncmantlePE,difmatE,etaavgE,etauncavgE,delavgE,deluncavgE,etamantleE,uncetamantleE,delmantleE,epsihlstE,epsiunchlstE,gammahlstE,gammaunchlstE=get_aniC_aniM_fromV(fvsv,fvsh,fvpv,fvph,feta,deplst)
+        out.write(" aniCeffTI %8.4f %8.4f aniMeffTI %8.4f %8.4f difCeffTI %8.4f 0 "%(aniavg,uncavg,animantle,uncmantle,difavg))
+
+
+	#out.write("\n")
+
+	#../L32A_inv_8/Animod_0_L32A_-98.0_42.0.txt
+	#fani = "%s/%s_inv_%s/Animod_0_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
+	fani = "%s/%s_inv_%s/Animod_avg_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
+	if (os.path.exists(fani)):
+		misfit=get_misfit(fani)
+		out.write(" misfit_avg %8.4f "%(misfit))
+	else:
+		out.write(" misfit_avg nan ")
+
+	#fani = "%s/%s_inv_%s/AnimodB_0_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
+	fani = "%s/%s_inv_%s/Animod_best_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
+	if (os.path.exists(fani)):
+		misfitB=get_misfit(fani)
+		out.write(" misfit_best %8.4f "%(misfitB))
+	else:
+		out.write(" misfit_best nan ")
+	out.write("aniCP %8.4f %8.4f aniMP %8.4f %8.4f difM %8.4f 0 aniCPeffTI %8.4f %8.4f aniMPeffTI %8.4f %8.4f difMeffTI %8.4f 0"%(aniavgP,uncavgP,animantleP,uncmantleP,difmat,aniavgPE,uncavgPE,animantlePE,uncmantlePE,difmatE))
+	out.write(" etaC %8.4f %8.4f deltaC %8.4f %8.4f etaCeffTI %8.4f %8.4f deltaCeffTI %8.4f %8.4f"%(etaavg,etauncavg,delavg,deluncavg,etaavgE,etauncavgE,delavgE,deluncavgE))
+	out.write(" etaM %8.4f %8.4f deltaM %8.4f %8.4f etaMeffTI %8.4f %8.4f deltaMeffTI %8.4f %8.4f"%(etamantle,uncetamantle,delmantle,0.,etamantleE,uncetamantleE,delmantleE,0.))
+	out.write("\n")	
+	#out.write(" misfit_avg %8.4f misfit_best %8.4f\n"%(misfit,misfitB))
+	out2.write("%.1f %.1f "%(lon,lat))
+	out3.write("%.1f %.1f "%(lon,lat))
+	for i in range(len(deplst)):
+		out2.write(" dep%.1f  gammaS %8.4f %8.4f  epsiP %8.4f %8.4f  "%(deplst[i],gammahlst[i],gammaunchlst[i],epsihlst[i],epsiunchlst[i]))
+		out3.write(" dep%.1f  gammaS %8.4f %8.4f  epsiP %8.4f %8.4f  "%(deplst[i],gammahlstE[i],gammaunchlstE[i],epsihlstE[i],epsiunchlstE[i]))
+	out2.write("\n")
+	out3.write("\n")
+out.close()
+out2.close()
+out3.close()
+
+
+

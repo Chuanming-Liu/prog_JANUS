@@ -1,0 +1,10 @@
+0begin jump0 time used walltime=0 sec; cputime=0 sec
+posAni jump0; ibad=5 time used walltime=0 sec; cputime=0 sec
+monoc jump0; ibad=0 time used walltime=0 sec; cputime=0 sec
+iiter=2000 iaccp=228 dtime=30.000000 ijump=0 iloop=0
+time used walltime=25 sec; cputime=5.5 sec
+iiter=4000 iaccp=423 dtime=58.000000 ijump=0 iloop=0
+time used walltime=53 sec; cputime=10.7 sec
+iiter=6000 iaccp=614 dtime=89.000000 ijump=0 iloop=0
+time used walltime=84 sec; cputime=16.07 sec
+.0291_152.7460_0.0158_30.8448
