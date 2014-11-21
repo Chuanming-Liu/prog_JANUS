@@ -131,6 +131,7 @@ model.laym0.thick[i] ...vsv[i] ...vsh[i] ...vp[i] ...rho[i] ...qp[i] ...qs[i]
 in.seekg(0,ios::end);
 int SSIZE = (int)in.tellg();
 in.seekg(0,ios::beg);
+int last_tellg=0;
 int N=0;
 groupdef tgp;
 modeldef model;
@@ -139,8 +140,11 @@ initmodel(model);
 model.flag=1;//the readin model is a layered model.
 
 while(in.tellg()<SSIZE){
+if ((int)in.tellg()==-1){printf("###tellg returns -1### skipped %d characters (about %.1f models, if each model contains 12 characters) ## not sure how to fix this problem\n",(SSIZE-last_tellg),(SSIZE-last_tellg)/12.);break;}
+last_tellg=(int)in.tellg();
 N=N+1;
-//cout<<"N="<<N<<endl;
+//cout<<"N="<<N<<endl; //---test--
+//printf("in.tellg=%d, SSIZE=%d\n",(int)in.tellg(),SSIZE);//---test---
 int *size,*ids,*n_len,i;
 double *misL,*gthick,*param,*paramLRA,*paramLAZ1,*paramLAZ2,*para_laym0;
 double a=1.0,depth=0.,tqp,tqs;
@@ -177,6 +181,7 @@ in.read((char *)misL,size[1]);//model.data.L   model.data.misfit    ...rf.misfit
 in.read((char *)n_len,size[2]);//para.npara   model.ngroup    model.laym0.nlayer
 size[3]=sizeof(double)*n_len[0];//double*para.npara
 size[4]=sizeof(double)*n_len[1];//double*model.ngroup
+//cout<<"ok1\n";//---test--
 param=new double[size[3]];
 paramLRA=new double[size[3]];
 paramLAZ1=new double[size[3]];
@@ -184,10 +189,15 @@ paramLAZ2=new double[size[3]];
 gthick=new double[size[4]];
 para_laym0=new double[size[5]];
 in.read((char *)param,size[3]);//para.parameter[]
+//if(N>3517)cout<<"ok2\n";//---test--
 in.read((char *)paramLRA,size[3]);//para.LoveRAparameter[]
+//if(N>3517)cout<<"ok3\n";//---test--
 in.read((char *)paramLAZ1,size[3]);//para.LoveAZparameter[][0]
+//if(N>3517)cout<<"ok4\n";//---test--
 in.read((char *)paramLAZ2,size[3]);//para.LoveAZparameter[][1]
+//if(N>3517)cout<<"ok5\n";//---test--
 in.read((char *)gthick,size[4]);//model.groups[].thick
+//cout<<"begin passing value to input structures\n";//---test--
 //----passing value to input structures -------------------------
 for(i=0;i<n_len[2];i++)//model.laym0.nlayer
 {
@@ -212,6 +222,7 @@ for(i=0;i<n_len[2];i++)//model.laym0.nlayer
   //model.laym0.qp.push_back(tqp);
    
 }
+//if(N>3517)cout<<"ok6\n";//---test--
 sign=ids[0];
 iiter=ids[1];
 iaccp=ids[2];
@@ -224,6 +235,7 @@ model.data.AziampRdisp.misfit=misL[5];
 model.data.AziampLdisp.misfit=misL[6];
 model.data.AziphiRdisp.misfit=misL[7];
 model.data.AziphiLdisp.misfit=misL[8];
+//if(N>3517)cout<<"ok7\n";//---test--
 
 para.misfit=model.data.misfit; //----there was a bug here, fixed on May 17, 2012
 para.npara=n_len[0];
@@ -235,6 +247,7 @@ for(i=0;i<para.npara;i++){tv.clear();tv.push_back(paramLAZ1[i]);tv.push_back(par
 for(i=0;i<model.ngroup;i++){model.groups.push_back(tgp);model.groups[i].thick=gthick[i];}
 //int read_bin(vector<modeldef> &modelall, vector<paradef> &paraall,char *fbname, vector<int> &signall, vecort<int> &iiterall, vector<int> &iaccpall)
 
+//if(N>3517)cout<<"ok8\n";//---test--
 //if (sign==1 and model.data.misfit<1.5 )
 if (sign ==1 )
 {

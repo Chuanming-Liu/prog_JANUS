@@ -113,7 +113,7 @@ sprintf(dirlay,argv[2]);
   //----------------------------------------------------------------------
 
   //sprintf(PREMnm,"/home/jiayi/progs/jy/Mineos/Mineos-Linux64-1_0_2/DEMO/models/prem_noocean.txt");
-  sprintf(PREMnm,"/home/jiayi/progs/jy/Mineos/Mineos-Linux64-1_0_2/DEMO/models/ak135_iso_nowater.txt");
+  sprintf(PREMnm,"/home/jixi7887/progs/jy/Mineos/Mineos-Linux64-1_0_2/DEMO/models/ak135_iso_nowater.txt");
   sprintf(inponm,argv[1]);
   sprintf(Rphindir,argv[4]);
   sprintf(Rgpindir,argv[5]);
