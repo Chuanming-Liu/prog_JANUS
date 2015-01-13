@@ -22,6 +22,8 @@
 // attension, // only the phi value in the 1st layer/grid of that group has the right value, since only that layer/grid has converted phi value, (e.g., you may find the phi value in the crust has different value at different layer/grid in the para_*.txt_phigp?) ## also, the output phi_*.txt has some problems.
 //after return para from compute_dispM_writeASC, the phi value in all layer/grid is correct now
 
+//this version, v9, use the new CALmodel code which has updated Likelihood&misfit definition, also, change the output Animod's name  (from *avg_node_lon_lat.txt_phigp%d to *avgnewLM_node_lon_lat.txt_phigp%d  )
+
 #include<iostream>
 #include<algorithm>
 #include<vector>
@@ -893,11 +895,11 @@ int main(int argc, char *argv[])
 		//compute the kernel for this para, compute its disp (RA and AZ), write the disp 
 		printf("compute_dispM_writeASC\n");//---test--
 		//exit(0);
-		sprintf(str,"avg_%s_%.1f_%.1f.txt_phigp%d",nodeid,lon,lat,ig);
+		sprintf(str,"avgnewLM_%s_%.1f_%.1f.txt_phigp%d",nodeid,lon,lat,ig);
 		paraavg=compute_dispM_writeASC(paraavg,paraP,modelP,PREM,inpamp,inpphi,Nprem,flagupdaterho,Rsurflag,Lsurflag,flagreadVkernel,flagreadLkernel,AziampRsurflag,AziampLsurflag,AziphiRsurflag,AziphiLsurflag,dirlay,str);
        	 	flagreadVkernel=0;
        	 	flagreadLkernel=0;
-		sprintf(str,"best_%s_%.1f_%.1f.txt_phigp%d",nodeid,lon,lat,ig);
+		sprintf(str,"bestnewLM_%s_%.1f_%.1f.txt_phigp%d",nodeid,lon,lat,ig);
 		parabest=compute_dispM_writeASC(parabest,paraP,modelP,PREM,inpamp,inpphi,Nprem,flagupdaterho,Rsurflag,Lsurflag,flagreadVkernel,flagreadLkernel,AziampRsurflag,AziampLsurflag,AziphiRsurflag,AziphiLsurflag,dirlay,str);
 	}
 

@@ -26,7 +26,7 @@
 
 #g++ -I /home/jixi7887/Tool/package/boost_1_54_0  -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp -O3 Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test_updateKeachjump_changeEtaSpace1.1_parall_3_dy
 #g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test_updateKeachjump_changeEtaSpace1.1_parall_Apr25_vpvsCM1.5_restoreUnc -std=c++11  # this is the code used to generate Jul paper.
-g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test_updateKeachjump_changeEtaSpace1.1_parall_Apr25_vpvsCM1.5_restoreUnc_weitLoveMore4 -std=c++11  
+#g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test_updateKeachjump_changeEtaSpace1.1_parall_Apr25_vpvsCM1.5_restoreUnc_weitLoveMore4 -std=c++11  
 #g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test_updateKeachjump_changeEtaSpace1.1_parall_Apr25_vpvsCM1.5_restoreUnc_RAamp_rmRAPpos -std=c++11  
 #g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o test3kacc20kitter -std=c++11 # for the Tibet inversion
 #g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversion_parallel_BS_multipleGp_Feb15_updateKeachjump_changeEtaSpace_parallel.C -o HVtest -std=c++11 # for the HVtest
@@ -37,6 +37,7 @@ g++  -O3 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4 -fopenmp   Main_do_inversi
 #g++ -I /home/jixi7887/Tool/package/boost_1_54_0 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4  -fopenmp -O3  CALavg_getposteria_v8.C -o CALavg_getposteria_v8_restoreunc #  this is the code used to generate Jul paper.
 #g++ -I /home/jixi7887/Tool/package/boost_1_54_0 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4  -fopenmp -O3  CALavg_getposteria_v8.C -o CALavg_getposteria_v8_restoreunc_0_100_1km  # get model at every 1km
 #g++ -I /home/jixi7887/Tool/package/boost_1_54_0 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4  -fopenmp -O3  CALavg_getposteria_v8.C -o CALavg_getposteria_v8_test
+g++ -I /home/jixi7887/Tool/package/boost_1_54_0 -I  /home/jixi7887/Tool/C++Eigen/eigen-3.1.4  -fopenmp -O3  CALavg_getposteria_v9.C -o CALavg_getposteria_v9_restoreunc_newLmisfit
 
 
 

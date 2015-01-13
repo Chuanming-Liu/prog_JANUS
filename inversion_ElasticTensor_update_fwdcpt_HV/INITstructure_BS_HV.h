@@ -57,7 +57,7 @@ struct dispdef{
 int npper,ngper,fphase,fgroup;
 //fphase,fgroup indicate if group/phase disp is read(1) or not(0)
 int fhv,nhvper;
-double pL,pmisfit,gL,gmisfit,L,misfit,hvmisfit;
+double pL,pmisfit,gL,gmisfit,L,misfit,hvmisfit,hvL;
 //period, liability,misfit
 double L2,misfit2,pL2,gL2,pmisfit2,gmisfit2;// this is for temperary use
 vector<double> pper,pvelo,pvel,unpvelo,gper,gvelo,gvel,ungvelo,period1;

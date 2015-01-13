@@ -15,12 +15,13 @@ invid = sys.argv[2]
 flagBest = int(sys.argv[3]) # write out the best-fitting para (1) or average para (0); the para only indicate the theta&phi or cos&sin; not the amplitude of radial anisotropy
 surffix=sys.argv[4]
 flag=int(sys.argv[5]) # indicate if use para v14.2(no sed), or v14.2.1 (has sed)
-indir = "/projects/jixi7887/work/US/inv_ET_BS"
-indirdata = "/lustre/janus_scratch/jixi7887/US/inv_ET_BS/inv_%s"%(invid)
+indir = "/projects/jixi7887/work/US/inv_ET_BS_LoveaddonT"
+indirdata = "/lustre/janus_scratch/jixi7887/US/inv_ET_BS_LoveaddonT/inv_%s"%(invid)
+#indirdata = "/lustre/janus_scratch/jixi7887/US/inv_ET_BS/inv_%s"%(invid)
 fout2="%s.depth_value"%(fout) # the Vs and Vp anisotropy as a function of depth
 fout3="%s.depth_value.effTI"%(fout) # the Vs and Vp anisotropy as a function of depth
 #####
-fpoint = "%s/point_info/point_info_closestnm_dist_1deg.txt"%(indir)
+fpoint = "/projects/jixi7887/work/US/inv_ET_BS/point_info/point_info_closestnm_dist_1deg.txt"
 #fpoint = "%s/data_disp_Jan7/point_info_v2.txt"%(indir)
 #fpoint = "%s/point_temp1.txt"%(indir)
 #####
@@ -497,7 +498,6 @@ for i in range(Npoint):
 	#../L32A_inv_8/Animod_0_L32A_-98.0_42.0.txt
 	#fani = "%s/%s_inv_%s/Animod_0_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
 	fani = "%s/%s_inv_%s/Animod_avg_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
-	#fani = "%s/%s_inv_%s/Animod_avgnewLM_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
 	if (os.path.exists(fani)):
 		misfit=get_misfit(fani)
 		out.write(" misfit_avg %8.4f "%(misfit))
@@ -505,8 +505,7 @@ for i in range(Npoint):
 		out.write(" misfit_avg nan ")
 
 	#fani = "%s/%s_inv_%s/AnimodB_0_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
-	fani = "%s/%s_inv_%s/Animod_best_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
-	#fani = "%s/%s_inv_%s/Animod_bestnewLM_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
+	fani = "%s/%s_inv_%s/Animod_best_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
 	if (os.path.exists(fani)):
 		misfitB=get_misfit(fani)
 		out.write(" misfit_best %8.4f "%(misfitB))

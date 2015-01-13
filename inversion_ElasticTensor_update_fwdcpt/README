@@ -1,0 +1,5 @@
+this directory contains the code that has different forward computation.
+*the Lkernel is directly computed from Mineos, not through Vkernel
+*Test_fwd_cpt.C contains the subroutine that tests the accuracy of the computed dispersion curves with different kernel, these subroutines are called in the Main program
+*BIN_rw_Love.C is updated on Nov21, sometimes the in.tellg() returns -1, don't know why... need to be fixed, right now I just skip reading models once tellg() returns -1
+

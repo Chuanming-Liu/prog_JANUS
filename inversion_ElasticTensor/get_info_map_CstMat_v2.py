@@ -307,7 +307,7 @@ for i in range(Npoint):
 		out.write(" misfit_avg nan ")
 
 	#fani = "%s/%s_inv_%s/AnimodB_0_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
-	fani = "%s/%s_inv_%s/Animod_best_%s_%.1f_%.1f.txt"%(indirdata,name,invid,stnm,lon,lat)
+	fani = "%s/%s_inv_%s/Animod_best_%s_%.1f_%.1f.txt%s"%(indirdata,name,invid,stnm,lon,lat,surffix)
 	if (os.path.exists(fani)):
 		misfitB=get_misfit(fani)
 		out.write(" misfit_best %8.4f "%(misfitB))

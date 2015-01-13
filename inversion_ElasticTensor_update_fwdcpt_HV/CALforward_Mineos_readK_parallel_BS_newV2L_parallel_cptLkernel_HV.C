@@ -15,6 +15,7 @@ int Vpara2ET2LoveCoeff(vector<double> Vparameter, double[6][6] &ET,double[8] &RA
 int getGroupVPara(groupdef group, vector<vector<double> > &Vparameter2, int flagupdaterho)
 int Vpara2Lovepara(paradef para,modeldef model,int flagupdaterho)
 int Lovepara2Vpara(paradef &para, modeldef model) //from the RA part of the Love para, get vsv~vph,eta & theta=pho=0;
+int compute_HVdisp(modeldef &model,paradef para, modeldef refmod, paradef refpara, vector<vector<vector<double> > > Vkernel)
 int compute_RAdisp(modeldef &model, paradef para, modeldef refmod, paradef refpara, vector<vector<vector<double> > > Vkernel, vector<vector<vector<double> > > Lkernel)
 int cs2ap(double Ac,double As, double &amp,double &phi, int phiflag, int RLflag)
 int compute_AZdisp(modeldef &model, paradef para, modeldef refmod, paradef refpara, vector<vector<vector<double> > > Vkernel, vector<vector<vector<double> > > Lkernel)
@@ -316,7 +317,7 @@ int read_dispMineos(dispdef &indisp,const char* Moutputnm, const char* HVoutputn
 {//from Minoes output(Moutputnm with Nmod lines of model), read in the dispersion information to disp(indisp)
   fstream Mf;
   int i;
-  double tper,tpvel,tgvel;
+  double tper,tpvel,tgvel,thvratio;
   string line;
   vector<string> v;
   dispdef tdisp;
@@ -357,14 +358,14 @@ int read_dispMineos(dispdef &indisp,const char* Moutputnm, const char* HVoutputn
   while(getline(Mf,line)){
     i++;
     v.clear();
-    Splie(line,v," ");
+    Split(line,v," ");
     tper=atof(v[0].c_str());
     thvratio=atof(v[1].c_str());
     tdisp.hvper.push_back(tper);
     tdisp.hvratio.push_back(thvratio);
     tdisp.nhvper++;
   }//while
-  Mf.close()
+  Mf.close();
   }// if indisp.fhv>0
 
   //interpolate the tdisp into specified period list, and store the vel in indisp
@@ -420,7 +421,7 @@ int compute_dispMineos(modeldef &model,vector<vector<double> > PREM,int Nprem, i
      sprintf(str,"csh run_Mineos_bran.csh %d %s %s %.1f %.1f\n",jcmp,moddir,modnm,wmin,wmax);
      system(str);
      sprintf(Moutputnm,"%s_T",modnm);
-     sprintf(HVoutputnm,"%s_HV_T".modnm);
+     sprintf(HVoutputnm,"%s_HV_T",modnm);
      read_dispMineos(model.data.Ldisp,Moutputnm,HVoutputnm,Nmod);  	
      model.data.AziampLdisp.pvel.clear();model.data.AziampLdisp.gvel.clear();model.data.AziphiLdisp.pvel.clear();model.data.AziphiLdisp.gvel.clear();
 
@@ -446,7 +447,7 @@ int compute_dispMineos(modeldef &model,vector<vector<double> > PREM,int Nprem, i
      system(str);
      //get disp info from Mineos output 
      sprintf(Moutputnm,"%s_S",modnm);
-     sprintf(HVoutputnm,"%s_HV_S".modnm);
+     sprintf(HVoutputnm,"%s_HV_S",modnm);
      //cout<<"ok000\n";
      read_dispMineos(model.data.Rdisp,Moutputnm,HVoutputnm,Nmod);//according to Moutputnm, store pvel and gvel into m.d.R/Ldisp.pvel/gvel
      //cout<<"ok00\n";
@@ -607,14 +608,14 @@ int compute_Vkernel_single_para(paradef para, int i,modeldef model, vector<vecto
 //---------------------------------------
 int compute_Vkernel(paradef para,modeldef model,vector<vector<vector<double> > > &kernel,const vector<vector<double> > PREM,const int Nprem, const int Rflag,const int Lflag,const int flagupdaterho, const int ijump){ // ; BS
   // purterb the input para, then compute kernel
-  //kernel: kernel[kRp[nP][nT],kRg[][],kLp[][],kLg[][]]
+  //kernel: kernel[kRp[nP][nT],kRg[][],kLp[][],kLg[][],kHVratio[][]]
   //should keep the model(&its disp) updated before using this subroutine
   // added ijump flag on Mar12, to allow using this compute_Vkernel by multiple processor simotaneously
 
   int j,ng,nv,ppflag,LVflag;
   vector<vector<double> > trkp2,trkg2,tlkp2,tlkg2,trkhv2;
   vector<double> trkp1,trkg1,tlkp1,tlkg1,trkhv1;
-  vector<double> temp1,temp2,temp3,temp4;
+  vector<double> temp1,temp2,temp3,temp4,temp5;
   vector<double> Rp0(model.data.Rdisp.npper,0.),Rg0(model.data.Rdisp.ngper,0.),Lp0(model.data.Ldisp.npper,0.),Lg0(model.data.Ldisp.ngper,0.),Rhv0(model.data.Rdisp.nhvper,0.);
 
   for(j=0;j<para.npara;j++){
@@ -638,7 +639,7 @@ int compute_Vkernel(paradef para,modeldef model,vector<vector<vector<double> > >
   //omp_set_dynamic(0);
   omp_set_num_threads(10);
   //#pragma omp parallel default(none) shared(ijump,model,para,Rp0,Rg0,Lp0,Lg0,PREM,Nprem,Rflag,Lflag,flagupdaterho,trkp2,trkg2,tlkp2,tlkg2) private(ng,ppflag,LVflag,trkp1,trkg1,tlkp1,tlkg1) 
-  #pragma omp parallel default(none) shared(model,para,Rp0,Rg0,Lp0,Lg0,trkp2,trkg2,tlkp2,tlkg2) private(ng,ppflag,LVflag,trkp1,trkg1,tlkp1,tlkg1) 
+  #pragma omp parallel default(none) shared(model,para,Rp0,Rg0,Lp0,Lg0,Rhv0,trkhv2,trkp2,trkg2,tlkp2,tlkg2) private(ng,ppflag,LVflag,trkp1,trkg1,trkhv1,tlkp1,tlkg1) 
   {
   printf("#####compute Vkernel threads=%d ijump=%d\n",omp_get_num_threads(),ijump);//--check---
   #pragma omp for
@@ -916,12 +917,12 @@ int Vkernel2Lkernel(paradef para,modeldef model,vector<vector<vector<double> > >
 int read_kernel(paradef &para, modeldef &model,vector<vector<vector<double> > > &kernel, const char *fRker, const char *fLker,const char *fRhvker, int Rflag, int Lflag,vector<vector<double> > PREM,int Nprem)
 {
   //kernel: kernel[kRp[nP][nT],kRg[][],kLp[][],kLg[][],kRhv[][]]
-  // read in kernel from outside file, now it only read in Rph and Lph and Rhvratio kernel.
+  // read in kernel from outside file, now it only read in Rph and Lph and Rhvratio kernel. So use Rg0 and Lg0 to fill the group velocity kernel
   fstream mff;
   string line;
   vector<string> v;
   vector<vector<double> > tkp2,tkg2,ttk2,tkhv2;
-  vector<double> tkp1,Rg0,Lg0,ttk1,Rhv0;
+  vector<double> tkp1,Rg0,Lg0,ttk1;//,Rhv0;
   int nT,nP,i,j;
 
  
@@ -929,7 +930,7 @@ int read_kernel(paradef &para, modeldef &model,vector<vector<vector<double> > > 
 
   for(i=0;i<model.data.Rdisp.ngper;i++)Rg0.push_back(0.);
   for(i=0;i<model.data.Ldisp.ngper;i++)Lg0.push_back(0.);
-  for(i=0;i<model.data.Rdisp.nhvper;i++)Rhv0.push_back(0.);
+  //for(i=0;i<model.data.Rdisp.nhvper;i++)Rhv0.push_back(0.);
   //ttk1.push_back(-999.);ttk2.push_back(ttk1);  
 
   kernel.clear();
@@ -1025,7 +1026,7 @@ int read_kernel(paradef &para, modeldef &model,vector<vector<vector<double> > > 
   else{kernel.push_back(ttk2);kernel.push_back(ttk2);}
   
   if (model.data.Rdisp.fhv>0){
-        nT=mode.data.Rdisp.nhvper;
+        nT=model.data.Rdisp.nhvper;
         nP=para.npara;
         double** kRhv= new double*[nP];
         for(i=0;i<nP;++i)kRhv[i]=new double[nT];
@@ -1072,8 +1073,8 @@ int read_kernel(paradef &para, modeldef &model,vector<vector<vector<double> > > 
 
 //---------------------------------------
 //write_kernel(Vkernel,model0,para1,dirlay,nodeid,lon,lat,Rsurflag,Lsurflag);
-int write_kernel(vector<vector<vector<double> > > Vkernel,modeldef model0,paradef para1,char *kernelnmR, char *kernelnmL, int Rsurflag, int Lsurflag){
-	//===write kernel===only write the kernel for phvel kernel[0] and kernel[2]
+int write_kernel(vector<vector<vector<double> > > Vkernel,modeldef model0,paradef para1,char *kernelnmR, char *kernelnmL, char *kernelnmRhv, int Rsurflag, int Lsurflag){
+	//===write kernel===only write the kernel for phvel kernel[0] and kernel[2], and Rhvkernel i.e. kernel[4]
 	FILE *fkernel;
 	int i,j;
 	//printf("test--- Vkernel.size=%d\n",Vkernel.size());
@@ -1119,6 +1120,20 @@ int write_kernel(vector<vector<vector<double> > > Vkernel,modeldef model0,parade
         	}
        		fclose(fkernel);
     	}
+	if(model0.data.Rdisp.fhv>0){
+		if((fkernel=fopen(kernelnmRhv,"w"))==NULL){
+                        printf("### write_kernel, cannot open file %s to write!!\n",kernelnmRhv);
+                        exit(0);
+                }
+		for(i=0;i<model0.data.Rdisp.nhvper;i++){
+			fprintf(fkernel,"%f ",model0.data.Rdisp.hvper[i]);
+			for(j=0;j<para1.npara;j++){
+				fprintf(fkernel," %g",Vkernel[4][j][i]);
+			}
+			fprintf(fkernel,"\n");
+		}//for i
+		fclose(fkernel);
+	}
   return 1;
 }//write_kernel
 //#####################################################################################
@@ -1495,6 +1510,33 @@ int Lovepara2Vpara(paradef &para, modeldef model)
 
   return 1;
 }
+//---------------------------------------
+int compute_HVdisp(modeldef &model,paradef para, modeldef refmod, paradef refpara, vector<vector<vector<double> > > Vkernel){
+  // compute the HVratio dispersion curve with the Vkernel
+  int i,j,ppflag;
+  double tval; 
+  vector<vector<double> >  kernel;  
+  vector<double> paradiff;
+
+  kernel=Vkernel[4]; // the Rayleigh HV kernel
+  for(i=0;i<para.npara;i++){
+        ppflag=(int)para.para0[i][6];
+	if((ppflag-10)*(ppflag-11)==0)
+		paradiff.push_back(0.);
+	else
+		paradiff.push_back(para.parameter[i]-refpara.parameter[i]);
+  }
+  for (i=0;i<model.data.Rdisp.nhvper;i++){
+	tval=refmod.data.Rdisp.hvratio[i];
+	for(j=0;j<para.npara;j++){
+		tval+=paradiff[j]*kernel[j][i];
+	}
+	model.data.Rdisp.hvratio[i]=tval;
+  }  
+  
+
+  return 1;
+}//compute_HVdisp
 //---------------------------------------
 int compute_RAdisp(modeldef &model, paradef para, modeldef refmod, paradef refpara, vector<vector<vector<double> > > Vkernel, vector<vector<vector<double> > > Lkernel, int Rsurflag, int Lsurflag){
   int i,j,k,nT,nP,LVflag,ng;
@@ -1969,7 +2011,7 @@ int compute_AZdisp(modeldef &model, paradef para, modeldef refmod, paradef refpa
 
 //---------------------------------------
 int compute_dispKernel(modeldef &model,paradef para, modeldef refmodel, paradef refpara, vector<vector<vector<double> > > Vkernel, vector<vector<vector<double> > >  Lkernel, int Rflag, int Lflag,int Razflag, int Lazflag){
-  
+  compute_HVdisp(model,para,refmodel,refpara,Vkernel);
   compute_RAdisp(model,para,refmodel,refpara,Vkernel,Lkernel,Rflag,Lflag);
   compute_AZdisp(model,para,refmodel,refpara,Vkernel,Lkernel,Razflag,Lazflag);
   
@@ -2161,14 +2203,15 @@ int L2Vpara(paradef &para, modeldef model,int ipara){//LoveRA para to Vpara, onl
 }//L2Vpara
 
 //------------------------------------------------------------------------------------
-int compute_Lkernel_single_para(paradef para, int i, modeldef model,  vector<vector<double> > PREM,int Nprem, int Rflag, int Lflag,int flagupdaterho, vector<double> &trkp1, vector<double> &trkg1, vector<double> &tlkp1, vector<double> &tlkg1, int inum){
+int compute_Lkernel_single_para(paradef para, int i, modeldef model,  vector<vector<double> > PREM,int Nprem, int Rflag, int Lflag,int flagupdaterho, vector<double> &trkp1, vector<double> &trkg1, vector<double> &trkhv1, vector<double> &tlkp1, vector<double> &tlkg1, int inum){
 // compute Lkernel for each Lparameter, there is no rho here in Lparameter, so never perturb rho in the current version
 // perturb para.LoveRAparameter --> L2Vpara --> get delta_disp --> get partial derivatives
+// add the HV ratio's kernel
   modeldef newmodel;  
   paradef newpara;
   float dp=0.02,ddp; //dp*100% perturbation
   int j;
-  vector<vector<double> > DRpvel,DRgvel,DLpvel,DLgvel;
+  vector<vector<double> > DRpvel,DRgvel,DLpvel,DLgvel,DRhvratio,DLdump;
 
   newmodel=model;
   newpara=para;
@@ -2182,11 +2225,13 @@ int compute_Lkernel_single_para(paradef para, int i, modeldef model,  vector<vec
 	para2mod_static(newpara,model,newmodel);
 	updatemodel(newmodel,flagupdaterho);
 	compute_dispMineos(newmodel,PREM,Nprem,1,0,inum);
-	compute_diff(newmodel.data.Rdisp,model.data.Rdisp,DRpvel,DRgvel);
+	compute_diff(newmodel.data.Rdisp,model.data.Rdisp,DRpvel,DRgvel,DRhvratio);
 	for(j=0;j<model.data.Rdisp.npper;j++)
                 trkp1.push_back(DRpvel[j][3]/ddp);
         for(j=0;j<model.data.Rdisp.ngper;)
                 trkg1.push_back(DRgvel[j][3]/ddp);
+        for(j=0;j<model.data.Rdisp.nhvper;)
+                trkg1.push_back(DRhvratio[j][3]/ddp);
         for(j=0;j<model.data.Ldisp.npper;j++)
                 tlkp1.push_back(0.);
         for(j=0;j<model.data.Ldisp.ngper;j++)
@@ -2200,12 +2245,14 @@ int compute_Lkernel_single_para(paradef para, int i, modeldef model,  vector<vec
         updatemodel(newmodel,flagupdaterho);
         printf("@@@ check, compute_Lkernel_single_para, para %g -->%g\n",para.parameter[i],newpara.parameter[i]);
         compute_dispMineos(newmodel,PREM,Nprem,1,1,inum);
-        compute_diff(newmodel.data.Rdisp,model.data.Rdisp,DRpvel,DRgvel);
-        compute_diff(newmodel.data.Ldisp,model.data.Ldisp,DLpvel,DLgvel);
+        compute_diff(newmodel.data.Rdisp,model.data.Rdisp,DRpvel,DRgvel,DRhvratio);
+        compute_diff(newmodel.data.Ldisp,model.data.Ldisp,DLpvel,DLgvel,DLdump);
         for(j=0;j<model.data.Rdisp.npper;j++)
                 trkp1.push_back(DRpvel[j][3]/ddp);
         for(j=0;j<model.data.Rdisp.ngper;j++)
                 trkg1.push_back(DRgvel[j][3]/ddp);
+        for(j=0;j<model.data.Rdisp.nhvper;)
+                trkg1.push_back(DRhvratio[j][3]/ddp);
         for(j=0;j<model.data.Ldisp.npper;j++)
                 tlkp1.push_back(DLpvel[j][3]/ddp);
         for(j=0;j<model.data.Ldisp.ngper;j++)
@@ -2218,7 +2265,7 @@ int compute_Lkernel_single_para(paradef para, int i, modeldef model,  vector<vec
 	L2Vpara(newpara,newmodel,i);
         updatemodel(newmodel,flagupdaterho);
         compute_dispMineos(newmodel,PREM,Nprem,0,1,inum);
-        compute_diff(newmodel.data.Ldisp,model.data.Ldisp,DLpvel,DLgvel);
+        compute_diff(newmodel.data.Ldisp,model.data.Ldisp,DLpvel,DLgvel,DLdump);
         for(j=0;j<model.data.Rdisp.npper;j++)
                 trkp1.push_back(0.);
         for(j=0;j<model.data.Rdisp.ngper;)
@@ -2237,20 +2284,21 @@ int compute_Lkernel(paradef para,modeldef model,vector<vector<vector<double> > >
 // only do this to point(from BS model) or layered model (model.group[].flag=1 or 6)
 
   int j,ng,nv,ppflag,LVflag;
-  vector<vector<double> > trkp2,trkg2,tlkp2,tlkg2;
-  vector<double> trkp1,trkg1,tlkp1,tlkg1;  
-  vector<double> Rp0(model.data.Rdisp.npper,0.),Rg0(model.data.Rdisp.ngper,0.),Lp0(model.data.Ldisp.npper,0.),Lg0(model.data.Ldisp.ngper,0.);
+  vector<vector<double> > trkp2,trkg2,tlkp2,tlkg2,trkhv2;
+  vector<double> trkp1,trkg1,tlkp1,tlkg1,trkhv1;  
+  vector<double> Rp0(model.data.Rdisp.npper,0.),Rg0(model.data.Rdisp.ngper,0.),Lp0(model.data.Ldisp.npper,0.),Lg0(model.data.Ldisp.ngper,0.),Rhv0(model.data.Rdisp.nhvper,0.);
 
   for(j=0;j<para.npara;j++){
         trkp2.push_back(Rp0);
         trkg2.push_back(Rg0);
         tlkp2.push_back(Lp0);
         tlkg2.push_back(Lg0);
+	trkhv2.push_back(Rhv0);
   }
   kernel.clear();
 
   omp_set_num_threads(10);
-  #pragma omp parallel default (none) shared(model,para,Rp0,Rg0,Lp0,Lg0,trkp2,trkg2,tlkp2,tlkg2) private(ng,nv,ppflag,LVflag,trkp1,trkg1,tlkp1,tlkg1)
+  #pragma omp parallel default (none) shared(model,para,Rp0,Rg0,Lp0,Lg0,Rhv0,trkhv2,trkp2,trkg2,tlkp2,tlkg2) private(ng,nv,ppflag,LVflag,trkp1,trkg1,trkhv1,tlkp1,tlkg1)
   {
   printf("#####compute Lkernel threads=%d ijump=%d\n",omp_get_num_threads(),ijump);//---check---
   #pragma omp for
@@ -2261,15 +2309,15 @@ int compute_Lkernel(paradef para,modeldef model,vector<vector<vector<double> > >
         ppflag=(int)para.para0[i][6];
 	LVflag=(int)para.para0[i][7];
 
-	if(LVflag==1 or model.groups[ng].flagcpttype==3 or model.groups[ng].flagcpttype==1){trkp1=Rp0;trkg1=Rg0;tlkp1=Lp0;tlkg1=Lg0;}// only need Vkernel,so Lkernel-->0; or cpt with V+AZ kernel; or cpt with Vkernel
+	if(LVflag==1 or model.groups[ng].flagcpttype==3 or model.groups[ng].flagcpttype==1){trkp1=Rp0;trkg1=Rg0;trkhv1=Rhv0;tlkp1=Lp0;tlkg1=Lg0;}// only need Vkernel,so Lkernel-->0; or cpt with V+AZ kernel; or cpt with Vkernel
 	else if (model.groups[ng].flag==1 or model.groups[ng].flag==6){// cpt with Lkernel for layered model, or point model (BS)
 		if(ppflag>5 and ppflag!=9){
 			printf("@@@ check, compute_Lkernel, dealing with the %d/%dth para, NO Lkernel cpt=====\n",i,para.npara);
-			trkp1=Rp0;trkg1=Rg0;tlkp1=Lp0;tlkg1=Lg0;
+			trkp1=Rp0;trkg1=Rg0;tlkp1=Lp0;tlkg1=Lg0;trkhv1=Rhv0;
 		}			
 		else{
 			printf("@@@ check, compute_Lkernel, dealing with the %d/%dth para, DOOOOO Lkernel cpt=====\n",i,para.npara);
-			compute_Lkernel_single_para(para,i,model,PREM,Nprem,Rflag,Lflag,flagupdaterho,trkp1,trkg1,tlkp1,tlkg1,i+ijump*para.npara);//=====
+			compute_Lkernel_single_para(para,i,model,PREM,Nprem,Rflag,Lflag,flagupdaterho,trkp1,trkg1,trkhv1,tlkp1,tlkg1,i+ijump*para.npara);//=====
 		}//else ppflag
 	
 	}//else if flag
@@ -2286,6 +2334,7 @@ int compute_Lkernel(paradef para,modeldef model,vector<vector<vector<double> > >
 	printf("@@@ check, compute_Lkernel, end of the %d/%d th para\n",i,para.npara);
 	trkp2[i]=trkp1;
         trkg2[i]=trkg1;
+	trkhv2[i]=trkhv1;
         tlkp2[i]=tlkp1;
         tlkg2[i]=tlkg1;
 	}
@@ -2301,6 +2350,7 @@ int compute_Lkernel(paradef para,modeldef model,vector<vector<vector<double> > >
   kernel.push_back(trkg2);
   kernel.push_back(tlkp2);
   kernel.push_back(tlkg2);
+  kernel.push_back(trkhv2);
 
   return 1;
 }// compute_Lkernel

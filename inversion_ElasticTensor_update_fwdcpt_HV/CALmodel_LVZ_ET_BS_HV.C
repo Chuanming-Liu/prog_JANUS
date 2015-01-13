@@ -612,8 +612,9 @@ column:	0		1			2				3			4				5				....			N-1
 //-----------------------------------------------------	
 	int compute_misfitDISP_single(dispdef &disp,double &tempv,double &tS)
 	{
+	  // add the HV ratio misfit computation on Dec 3, 2014
           int i,j,k;
-          double tp,td,p,ttS,tempv1=0.,tempv2=0.;
+          double tp,td,p,ttS,tempv1=0.,tempv2=0.,tempv3=0.;
 
           for(i=0;i<disp.npper;i++)
                 {tempv1=tempv1+pow((disp.pvelo[i]-disp.pvel[i])/disp.unpvelo[i],2);}
@@ -637,9 +638,21 @@ column:	0		1			2				3			4				5				....			N-1
                   disp.gL=exp(-0.5*tS);
                 }//if	
 
-	  tempv=tempv1+tempv2;
-	  disp.misfit=sqrt((tempv1+tempv2)/(disp.npper+disp.ngper));
-	  ttS=(tempv1+tempv2);
+	  if(disp.fhv>0){
+	  for(i=0;i<disp.nhvper;i++){
+		tempv3+=pow((disp.hvratioo[i]-disp.hvratio[i])/disp.unhvratioo[i],2); }
+          if(tempv3>0.){
+		disp.hvmisfit=sqrt(tempv3/disp.nhvper);
+                tS=tempv3;
+                if(tS>50.)tS=sqrt(tS*50);
+                if(tS>50.)tS=sqrt(tS*50);
+		disp.hvL=exp(-0.5*tS);
+          	}//if tempv3
+	  }//if fhv>0
+	
+	  tempv=tempv1+tempv2+tempv3;
+	  disp.misfit=sqrt((tempv1+tempv2+tempv3)/(disp.npper+disp.ngper+disp.nhvper));
+	  ttS=(tempv1+tempv2+tempv3);
 	  if(ttS>50)ttS=sqrt(ttS*50);
 	  if(ttS>50)ttS=sqrt(ttS*50);
 	  disp.L=exp(-0.5*ttS);
@@ -710,7 +723,7 @@ column:	0		1			2				3			4				5				....			N-1
 	  int Rn,Rampn,Rphin,Ln,Lampn,Lphin;
 	  Rn=Rampn=Rphin=Ln=Lampn=Lphin=0;
 	  //printf("nT: nRp=%d nRg=%d nLp=%g nLg=%d\n",model.data.Rdisp.npper,model.data.Rdisp.ngper,model.data.Ldisp.npper,model.data.Ldisp.ngper);//---test
-	  if (Rflag>0){compute_misfitDISP_single(model.data.Rdisp,tempvR,tS1);Rn=model.data.Rdisp.npper+model.data.Rdisp.ngper;}
+	  if (Rflag>0){compute_misfitDISP_single(model.data.Rdisp,tempvR,tS1);Rn=model.data.Rdisp.npper+model.data.Rdisp.ngper+model.data.Rdisp.nhvper;}
 	  /*tmisfit1=sqrt((tempv1+tempv2)/(model.data.Rdisp.npper+model.data.Rdisp.ngper));
 	  //tL1=model.data.Rdisp.gL*model.data.Rdisp.pL;
 	  tS=(tempv1+tempv2);
@@ -728,12 +741,14 @@ column:	0		1			2				3			4				5				....			N-1
 	  if(AziphiLflag>0){compute_misfitDISP_single_phi(model.data.AziphiLdisp,tempvLphi,tS6,2);Lphin=model.data.AziphiLdisp.npper+model.data.AziphiLdisp.ngper;}
 
 	  //*************how to compute data.L data.misfit when R and L are both presented?
-	  tS=0.5*((1.-inpamp-inpphi)*(tempvR+tempvL)+inpamp*(tempvRamp+tempvLamp)+inpphi*(tempvRphi+tempvLphi));
+	  tS=0.5*((tempvR+tempvL)+(tempvRamp+tempvLamp)+(tempvRphi+tempvLphi));
+	  //tS=0.5*((1.-inpamp-inpphi)*(tempvR+tempvL)+inpamp*(tempvRamp+tempvLamp)+inpphi*(tempvRphi+tempvLphi));
 	  //tS=0.5*((1.-inpamp-inpphi)*(tempvR+tempvL*4)+inpamp*(tempvRamp+tempvLamp)+inpphi*(tempvRphi+tempvLphi)); //---test--- weitLoveMore
 	  if (tS>50.)tS=sqrt(tS*50);
 	  if(tS>50.)tS=sqrt(tS*50);
 	  model.data.L=exp(-0.5*tS);
-	  model.data.misfit=(1-inpamp-inpphi)*sqrt((tempvR+tempvL)/max(1,Rn+Ln))+inpamp*sqrt((tempvRamp+tempvLamp)/max(1,Rampn+Lampn))+inpphi*sqrt((tempvRphi+tempvLphi)/max(1,Rphin+Lphin));
+	  model.data.misfit=sqrt((tempvR+tempvL+tempvRamp+tempvLamp+tempvRphi+tempvLphi)/(Rn+Ln+Rampn+Lampn+Rphin+Lphin));
+	  //model.data.misfit=(1-inpamp-inpphi)*sqrt((tempvR+tempvL)/max(1,Rn+Ln))+inpamp*sqrt((tempvRamp+tempvLamp)/max(1,Rampn+Lampn))+inpphi*sqrt((tempvRphi+tempvLphi)/max(1,Rphin+Lphin));
  	  //*****************
 	  return 1;
 	}//compute misfitDISP

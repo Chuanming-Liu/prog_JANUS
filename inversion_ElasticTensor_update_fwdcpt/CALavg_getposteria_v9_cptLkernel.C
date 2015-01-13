@@ -21,6 +21,8 @@
 // this version, further modified on May 13, 2014, output the rho in the post_*.txt file
 // attension, // only the phi value in the 1st layer/grid of that group has the right value, since only that layer/grid has converted phi value, (e.g., you may find the phi value in the crust has different value at different layer/grid in the para_*.txt_phigp?) ## also, the output phi_*.txt has some problems.
 //after return para from compute_dispM_writeASC, the phi value in all layer/grid is correct now
+// this version, further modified on Nov 23, 2014, compute Lkernel directly instead of using Vkernel2Lkernel
+// change the included files, keep them consistent with those in the Main code, changed the CALforward, CALinv, CALpara, gen_random, CALmodel
 
 #include<iostream>
 #include<algorithm>
@@ -29,26 +31,30 @@
 #include<fstream>
 #include <Eigen/Core>
 #include<string>
+#include <random>
+#include <chrono>
 
 using namespace std;
 using namespace Eigen;
 
+unsigned seed=chrono::system_clock::now().time_since_epoch().count();
+default_random_engine generator (seed);
+
 #include"./string_split.C"
 #include"./generate_Bs.C"
-#include"./gen_random.C"
+#include"./gen_random_cpp.C"
 #include"./INITstructure_BS.h"
-#include"CALpara_isolay_BS.C"
+#include"CALpara_isolay_BS_newV2L_changeEtaSpace.C"
 #include"./CALgroup_smooth_BS.C"
-//#include"CALmodel_LVZ_ET_BS.C"
-#include "../inversion_ElasticTensor_update_fwdcpt/CALmodel_LVZ_ET_BS_v2.C" // new misfit and likelihood definition
-#include"CALforward_Mineos_readK_parallel_BS_newV2L.C"
+#include"CALmodel_LVZ_ET_BS_v2.C"
+#include"CALforward_Mineos_readK_parallel_BS_newV2L_parallel_cptLkernel.C"
 #include "./ASC_rw.C"
 
 //#include "init.C"
 //#include "./BIN_rw.C"
 #include "./BIN_rw_Love.C"
 //#include "para_avg_multiple_gp.C"
-#include "CALinv_isolay_rf_parallel_saveMEM_BS_updateK.C"
+#include "CALinv_isolay_rf_parallel_saveMEM_BS_updateK_eachjump_parallel.C"
 #include "para_avg_multiple_gp_v5.C"
 
 //----------------------------------------------------------------
@@ -511,7 +517,7 @@ int i;
           } // if readkernel()==0    
     	}//if flagreadkernel==1
     	else{
-          compute_Vkernel(para1,model0,Vkernel,PREM,Nprem,Rsurflag,Lsurflag,flagupdaterho);
+          compute_Vkernel(para1,model0,Vkernel,PREM,Nprem,Rsurflag,Lsurflag,flagupdaterho,0);
           cout<<"check finish compute_Vkernel\n";
           write_kernel(Vkernel,model0,para1,kernelnmR,kernelnmL,Rsurflag,Lsurflag);
           cout<<"check finish write_Vkernel\n";
@@ -532,8 +538,9 @@ int i;
 
     	}//if flagreadLkernel==1
     	else{
-          Vkernel2Lkernel(para1,model0,Vkernel,Lkernel,flagupdaterho);
-          write_kernel(Lkernel,model0,para1,kernelnmR,kernelnmL,Rsurflag,Lsurflag);
+          //Vkernel2Lkernel(para1,model0,Vkernel,Lkernel,flagupdaterho);
+          //write_kernel(Lkernel,model0,para1,kernelnmR,kernelnmL,Rsurflag,Lsurflag);
+          compute_Lkernel(para1,model0,Lkernel,PREM,Nprem,Rsurflag,Lsurflag,flagupdaterho,0);//modification Nov 23, 2014
     	}//else
 	printf("end of kernel computation\n");
 	//--end of computing kernel
@@ -922,8 +929,8 @@ int main(int argc, char *argv[])
 	        else if(signall[i]==1){
 		fprintf(out,"posteria "); }
 		else{printf("#### problem with the readin sign, it's not 1 or 0, but=%d",signall[i]);exit(0);}
-		if((get_posteriaDist(10.,110.,5.,modelall[i].laym0.rho,modelall[i].laym0.vsv,modelall[i].laym0.vsh,modelall[i].laym0.vpv,modelall[i].laym0.vph,modelall[i].laym0.eta,modelall[i].laym0.theta,modelall[i].laym0.phi,modelall[i].laym0.thick,out))==0){continue;}
-		//if((get_posteriaDist(0.,100.,1.,modelall[i].laym0.rho,modelall[i].laym0.vsv,modelall[i].laym0.vsh,modelall[i].laym0.vpv,modelall[i].laym0.vph,modelall[i].laym0.eta,modelall[i].laym0.theta,modelall[i].laym0.phi,modelall[i].laym0.thick,out))==0){continue;}
+		//if((get_posteriaDist(10.,110.,5.,modelall[i].laym0.rho,modelall[i].laym0.vsv,modelall[i].laym0.vsh,modelall[i].laym0.vpv,modelall[i].laym0.vph,modelall[i].laym0.eta,modelall[i].laym0.theta,modelall[i].laym0.phi,modelall[i].laym0.thick,out))==0){continue;}
+		if((get_posteriaDist(0.,100.,1.,modelall[i].laym0.rho,modelall[i].laym0.vsv,modelall[i].laym0.vsh,modelall[i].laym0.vpv,modelall[i].laym0.vph,modelall[i].laym0.eta,modelall[i].laym0.theta,modelall[i].laym0.phi,modelall[i].laym0.thick,out))==0){continue;}
 		fprintf(out," g.thick %8g %8g %8g ALLmisfit %8g  Rmisfit %8g %8g %8g Lmisfit %8g %8g %8g L %8g\n",modelall[i].groups[0].thick,modelall[i].groups[1].thick,modelall[i].groups[2].thick,modelall[i].data.misfit,modelall[i].data.Rdisp.misfit,modelall[i].data.AziampRdisp.misfit,modelall[i].data.AziphiRdisp.misfit,modelall[i].data.Ldisp.misfit,modelall[i].data.AziampLdisp.misfit,modelall[i].data.AziphiLdisp.misfit,modelall[i].data.L);
 	}
 	fclose(out);

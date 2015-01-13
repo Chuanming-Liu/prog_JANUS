@@ -23,17 +23,17 @@ default_random_engine generator (seed);
 #include"./string_split.C"
 #include"./generate_Bs.C"
 #include"./gen_random_cpp.C"
-#include"./INITstructure_BS.h"
+#include"./INITstructure_BS_HV.h"
 //#include"CALpara_isolay_BS.C"
 #include "CALpara_isolay_BS_newV2L_changeEtaSpace.C"
 #include"./CALgroup_smooth_BS.C"
-#include"CALmodel_LVZ_ET_BS_v2.C"
-#include"CALforward_Mineos_readK_parallel_BS_newV2L_parallel_cptLkernel.C"
-#include "./ASC_rw.C"
+#include"CALmodel_LVZ_ET_BS_HV.C"
+#include"CALforward_Mineos_readK_parallel_BS_newV2L_parallel_cptLkernel_HV.C"
+#include "./ASC_rw_HV.C"
 #include "./BIN_rw_Love.C"
-#include "CALinv_isolay_rf_parallel_saveMEM_BS_updateK_eachjump_parallel.C"
+#include "CALinv_isolay_rf_parallel_saveMEM_BS_updateK_eachjump_parallel_cptLkernel_HV.C"
 //#include "para_avg_multiple_gp_v4.C" 
-#include "Test_fwd_cpt.C"
+//#include "Test_fwd_cpt.C"
 #define _USE_MATH_DEFINES
 
 
@@ -45,7 +45,7 @@ int i,j,k,isoflag,Nprem,k1,k2;
 int AziampRsurflag,AziphiRsurflag,AziampLsurflag,AziphiLsurflag;
 double bestmisfit, misfit, L,misfitcri;
 float depcri1,depcri2,qpcri,qscri,lon,lat;
-char inponm[100],Rgpindir[100],Rphindir[100],Lphindir[100],Lgpindir[100],kernelnmR[100],kernelnmL[100];
+char inponm[100],Rgpindir[100],Rphindir[100],Lphindir[100],Lgpindir[100],kernelnmR[100],kernelnmL[100],kernelnmRHV[100];
 vector<string> AziampRdispnm,AziphiRdispnm,AziampLdispnm,AziphiLdispnm;
 vector<string> Rdispnm,Ldispnm;
 char nodeid[5],str[150],modnm[100],Lparanm[100],Rparanm[100],PREMnm[100],fparanm[100];
@@ -288,9 +288,10 @@ sprintf(tmpstr,"if [ ! -d %s/binmod ]; then mkdir %s/binmod; fi",dirlay,dirlay);
     //---obtain V kernel ---
     sprintf(kernelnmR,"%s/VkernelRp1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
     sprintf(kernelnmL,"%s/VkernelLp1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
+    sprintf(kernelnmRHV,"%s/VkernelRHV1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
 
     if(flagreadVkernel==1){
-    	if((read_kernel(para1,model0,Vkernel,kernelnmR,kernelnmL,Rsurflag,Lsurflag,PREM,Nprem))==0){
+    	if((read_kernel(para1,model0,Vkernel,kernelnmR,kernelnmL,kernelnmRHV,Rsurflag,Lsurflag,PREM,Nprem))==0){
 		 printf ("#####!! read_kernel failed\n");
     	 	 sprintf(str,"echo point %d: id=%s lon=%f lat=%f >> point_rdKernel_failed_Ani.txt",npoint,nodeid,lon,lat);
          	 system(str);
@@ -300,7 +301,7 @@ sprintf(tmpstr,"if [ ! -d %s/binmod ]; then mkdir %s/binmod; fi",dirlay,dirlay);
     else{
     	compute_Vkernel(para1,model0,Vkernel,PREM,Nprem,Rsurflag,Lsurflag,flagupdaterho,0);
 	cout<<"check finish compute_Vkernel\n";
-	write_kernel(Vkernel,model0,para1,kernelnmR,kernelnmL,Rsurflag,Lsurflag);
+	write_kernel(Vkernel,model0,para1,kernelnmR,kernelnmL,kernelnmRHV,Rsurflag,Lsurflag);
 	cout<<"check finish write_Vkernel\n";
     }//else flagreadkernel==1
     //====
@@ -310,8 +311,9 @@ sprintf(tmpstr,"if [ ! -d %s/binmod ]; then mkdir %s/binmod; fi",dirlay,dirlay);
     //---obtain Love kernel ---
     sprintf(kernelnmR,"%s/LkernelRp1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
     sprintf(kernelnmL,"%s/LkernelLp1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
+    sprintf(kernelnmRHV,"%s/LkernelRHV1ani_%s_%.1f_%.1f.txt",dirlay,nodeid,lon,lat);
     if(flagreadLkernel==1){
-    	if((read_kernel(para1,model0,Lkernel,kernelnmR,kernelnmL,Rsurflag,Lsurflag,PREM,Nprem))==0){
+    	if((read_kernel(para1,model0,Lkernel,kernelnmR,kernelnmL,kernelnmRHV,Rsurflag,Lsurflag,PREM,Nprem))==0){
 		 printf ("#####!! read_kernel failed\n");
     	 	 sprintf(str,"echo point %d: id=%s lon=%f lat=%f >> point_rdKernel_failed_Ani.txt",npoint,nodeid,lon,lat);
          	 system(str);
@@ -323,7 +325,7 @@ sprintf(tmpstr,"if [ ! -d %s/binmod ]; then mkdir %s/binmod; fi",dirlay,dirlay);
 	compute_Lkernel(para1,model0,Lkernel,PREM,Nprem,Rsurflag,Lsurflag,flagupdaterho,0);
 	cout<<"check finish compute Lkernel\n";
     	//Vkernel2Lkernel(para1,model0,Vkernel,Lkernel,flagupdaterho);
-    	write_kernel(Lkernel,model0,para1,kernelnmR,kernelnmL,Rsurflag,Lsurflag);
+    	write_kernel(Lkernel,model0,para1,kernelnmR,kernelnmL,kernelnmRHV,Rsurflag,Lsurflag);
 	cout<<"check finish write_Lkernel\n";
     }
 /*  //----------------------------

@@ -1,20 +1,41 @@
+//this version (HV): modified write_ASCdisp_single
 using namespace std;
-int write_ASCdisp_single(dispdef disp, FILE *outdisp){
-  int i;
-  printf("begin write ASCdisp_single npper=%d ngper=%d\n",disp.npper,disp.ngper);
-  if(disp.npper>0)
-  {
-   if(disp.ngper>0)//write both
-      {for(i=0;i<disp.npper;i++) // ATTENTION!! Here, by default, pper and gper are equal!!!! Otherwise, the writing part need to be changed!!!!
-        fprintf(outdisp,"%5g ph %10g %10g %10g gp %10g %10g %10g\n",disp.pper[i],disp.pvelo[i],disp.pvel[i],disp.unpvelo[i],disp.gvelo[i],disp.gvel[i],disp.ungvelo[i]);}//if ngper>0
-   else
-      {for(i=0;i<disp.npper;i++) fprintf(outdisp,"%5g ph %10g %10g %10g gp 0 0 0\n",disp.pper[i],disp.pvelo[i],disp.pvel[i],disp.unpvelo[i]); }
- }//if npper>0
- else if (disp.ngper>0)
-      {for(i=0;i<disp.ngper;i++)fprintf(outdisp,"%5g ph 0 0 0 gp %10g %10g %10g\n",disp.gper[i],disp.gvelo[i],disp.gvel[i],disp.ungvelo[i]);}
 
-return 1;
+//--------------------------------
+int write_ASCdisp_single(dispdef disp, FILE *outdisp){
+  // write all 3 kinds of dispersion curves out, fill them all to the same length with ( 0 0 0 )
+  int i,sizemax;
+
+  printf("Begin to write ASCdisp single npper=%d ngper=%d nhvper=%d\n",disp.npper,disp.ngper,disp.nhvper);  
+  // fill all disp to the same length, to make the writting process easy
+  sizemax=(max(disp.npper,disp.ngper),disp.nhvper);
+  for(i=0;i<sizemax-disp.npper;i++){
+	disp.pper.push_back(0);
+	disp.pvelo.push_back(0.);
+	disp.pvel.push_back(0.);
+	disp.unpvelo.push_back(0.);
+  }
+  for(i=0;i<sizemax-disp.ngper;i++){
+	disp.gper.push_back(0);
+	disp.gvelo.push_back(0.);
+	disp.gvel.push_back(0.);
+	disp.ungvelo.push_back(0.);
+  }
+  for(i=0;i<sizemax-disp.nhvper;i++){
+  	//hvper,hvratioo,hvratio,unhvratioo
+	disp.hvper.push_back(0);
+	disp.hvratioo.push_back(0.);
+	disp.hvratio.push_back(0.);
+	disp.unhvratioo.push_back(0.);
+  }
+  	
+  for(i=0;i<sizemax;i++){
+	fprintf(outdisp,"ph %5g %10g %10g %10g gp %5g %10g %10g %10g hv %5g %10g %10g %10g\n",disp.pper[i],disp.pvelo[i],disp.pvel[i],disp.unpvelo[i], disp.gper[i],disp.gvelo[i],disp.gvel[i],disp.ungvelo[i], disp.hvper[i],disp.hvratioo[i],disp.hvratio[i],disp.unhvratioo[i]);
+  }	  	
+  
+  return 1;
 }//write_ASCdisp_single
+//--------------------------------
 
 /*--------------------------------
 int write_ASCAZdisp_single(dispdef AMPdisp, dispdef PHIdisp, FILE *outdisp,dispdef RAdisp){
